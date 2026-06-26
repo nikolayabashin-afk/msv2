@@ -25,6 +25,7 @@ body {
   color: var(--text);
   background: var(--ink);
   letter-spacing: 0;
+  overflow-x: clip;
 }
 a { color: inherit; text-decoration: none; }
 button, input, textarea { font: inherit; }
@@ -88,11 +89,14 @@ button, input, textarea { font: inherit; }
 .primary-button { border-color: rgba(66,201,245,.65); background: #1183c4; font-weight: 800; }
 .outline-button { font-weight: 800; }
 
-main { overflow: hidden; }
+main { overflow: visible; }
 .hero-scrub {
-  height: 420vh;
+  height: 360vh;
   position: relative;
-  background: #03070b;
+  background:
+    radial-gradient(circle at 22% 28%, rgba(66, 201, 245, .2), transparent 34%),
+    radial-gradient(circle at 80% 18%, rgba(185, 146, 77, .16), transparent 28%),
+    linear-gradient(135deg, #03070b 0%, #0b1824 48%, #071019 100%);
 }
 .hero-pin {
   position: sticky;
@@ -103,13 +107,23 @@ main { overflow: hidden; }
   display: grid;
   align-items: end;
 }
-.hero-video {
+.hero-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
   filter: saturate(.92) contrast(1.08) brightness(.68);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(66, 201, 245, .14), transparent 30%),
+    linear-gradient(135deg, #071019, #101d2a);
+}
+.hero-video-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  clip-path: inset(50%);
 }
 .hero-pin::before {
   content: "";

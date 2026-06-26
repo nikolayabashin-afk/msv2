@@ -270,7 +270,8 @@ function home() {
   shell(`
     <section class="hero-scrub" id="scrub">
       <div class="hero-pin">
-        <video class="hero-video" muted playsinline preload="auto" src="/assets/top-scroll-animation.mp4"></video>
+        <canvas class="hero-canvas" aria-hidden="true"></canvas>
+        <video class="hero-video-source" muted playsinline preload="auto" src="/assets/top-scroll-animation.mp4"></video>
         <div class="hero-content">
           <div>
             <p class="eyebrow">Earth remote sensing / geoscience technology</p>
@@ -366,27 +367,41 @@ function cta() {
   return `<section class="section steel"><div class="wrap split"><div><p class="kicker">Contact MSS</p><h2>${L("bottomCta")}</h2></div><div><p>${L("bottomBody")}</p><p><a class="primary-button" href="/contacts.html">${L("contact")}</a></p></div></div></section>`;
 }
 
-function setupScrub() {
+async function setupScrub() {
   const section = document.querySelector("#scrub");
-  const video = document.querySelector(".hero-video");
-  if (!section || !video) return;
+  const video = document.querySelector(".hero-video-source");
+  const canvas = document.querySelector(".hero-canvas");
+  if (!section || !video || !canvas) return;
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduce) {
-    video.removeAttribute("autoplay");
+    drawFallbackFrame(canvas, video);
     return;
   }
+
   video.pause();
-  video.currentTime = 0.001;
+  video.currentTime = 0;
   let duration = 1;
+  let latestProgress = 0;
+  let rendererApi = await createHeroRenderer(canvas, video);
+
   const setDuration = () => { duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : duration; };
   video.addEventListener("loadedmetadata", setDuration, { once: true });
   setDuration();
+
+  const resize = () => rendererApi.resize();
+  window.addEventListener("resize", resize, { passive: true });
+
   const update = () => {
     const rect = section.getBoundingClientRect();
     const travel = section.offsetHeight - window.innerHeight;
-    const progress = Math.min(1, Math.max(0, -rect.top / Math.max(1, travel)));
-    if (duration > 1) video.currentTime = progress * (duration - 0.08);
+    latestProgress = Math.min(1, Math.max(0, -rect.top / Math.max(1, travel)));
+    if (duration > 1) {
+      const target = latestProgress * Math.max(0.01, duration - 0.06);
+      if (Math.abs(video.currentTime - target) > 0.025) video.currentTime = target;
+    }
+    rendererApi.render(latestProgress);
   };
+
   let ticking = false;
   window.addEventListener("scroll", () => {
     if (!ticking) {
@@ -397,8 +412,81 @@ function setupScrub() {
       ticking = true;
     }
   }, { passive: true });
-  video.addEventListener("loadeddata", update, { once: true });
+  video.addEventListener("loadeddata", () => {
+    rendererApi.resize();
+    rendererApi.render(latestProgress);
+    update();
+  }, { once: true });
+  video.addEventListener("seeked", () => rendererApi.render(latestProgress));
   update();
+}
+
+async function createHeroRenderer(canvas, video) {
+  try {
+    const THREE = await Promise.race([
+      import("https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Three.js timed out")), 1400))
+    ]);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x071019);
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 1;
+    const texture = new THREE.VideoTexture(video);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+    scene.add(mesh);
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(1, Math.floor(rect.width));
+      const height = Math.max(1, Math.floor(rect.height));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+      renderer.setSize(width, height, false);
+      const canvasAspect = width / height;
+      const videoAspect = (video.videoWidth || 16) / (video.videoHeight || 9);
+      mesh.scale.set(videoAspect > canvasAspect ? videoAspect / canvasAspect : 1, videoAspect > canvasAspect ? 1 : canvasAspect / videoAspect, 1);
+    };
+
+    const render = (progress) => {
+      texture.needsUpdate = true;
+      mesh.rotation.z = (progress - 0.5) * 0.012;
+      renderer.render(scene, camera);
+    };
+
+    return { resize, render };
+  } catch {
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.75);
+      canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+      canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+    };
+    const render = () => drawFallbackFrame(canvas, video, ctx);
+    return { resize, render };
+  }
+}
+
+function drawFallbackFrame(canvas, video, existingCtx) {
+  const ctx = existingCtx || canvas.getContext("2d", { alpha: false });
+  if (!ctx) return;
+  if (!canvas.width || !canvas.height) {
+    const rect = canvas.getBoundingClientRect();
+    const ratio = Math.min(window.devicePixelRatio || 1, 1.75);
+    canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+    canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+  }
+  ctx.fillStyle = "#071019";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (!video.videoWidth || !video.videoHeight) return;
+  const scale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+  const width = video.videoWidth * scale;
+  const height = video.videoHeight * scale;
+  ctx.drawImage(video, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
 }
 
 function render() {
