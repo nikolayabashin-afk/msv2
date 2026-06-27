@@ -56,6 +56,7 @@ function patchHero() {
         </div>
 
         <div class="hero-animation-card" aria-label="Scroll-controlled exploration animation">
+          <canvas class="hero-scroll-canvas" aria-hidden="true"></canvas>
           <video
             class="hero-scroll-video"
             muted
@@ -71,17 +72,22 @@ function patchHero() {
     </div>
   `;
 
-  activeController = setupScrollVideo(section, section.querySelector(".hero-scroll-video"));
+  activeController = setupScrollVideo(
+    section,
+    section.querySelector(".hero-scroll-video"),
+    section.querySelector(".hero-scroll-canvas")
+  );
   isApplyingPatch = false;
 }
 
-function setupScrollVideo(section, video) {
+function setupScrollVideo(section, video, canvas) {
   if (!section || !video) return null;
 
   const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let duration = 0;
   let ticking = false;
   let destroyed = false;
+  const ctx = canvas?.getContext("2d", { alpha: true, willReadFrequently: true });
 
   function loadVideo() {
     if (video.dataset.loaded) return;
@@ -109,7 +115,44 @@ function setupScrollVideo(section, video) {
     const target = clamp(progress * duration, 0.02, Math.max(0.02, duration - 0.05));
     if (Math.abs(video.currentTime - target) > 0.016) {
       try { video.currentTime = target; } catch {}
+    } else {
+      drawCanvasFrame();
     }
+  }
+
+  function sizeCanvas() {
+    if (!canvas || !video.videoWidth || !video.videoHeight) return;
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+  }
+
+  function drawCanvasFrame() {
+    if (!ctx || !canvas || !video.videoWidth || !video.videoHeight) return;
+    sizeCanvas();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = frame.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const pixel = i / 4;
+      const y = Math.floor(pixel / canvas.width);
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      if (max > 238 && max - min < 18) {
+        data[i + 3] = 0;
+      } else if (max > 214 && max - min < 26) {
+        data[i + 3] = Math.min(data[i + 3], Math.round((238 - max) * 10));
+      } else if (y > canvas.height * 0.58 && max > 172 && max - min < 34) {
+        data[i + 3] = Math.min(data[i + 3], Math.max(0, Math.round((218 - max) * 4)));
+      }
+    }
+    ctx.putImageData(frame, 0, 0);
   }
 
   function update() {
@@ -130,11 +173,16 @@ function setupScrollVideo(section, video) {
   video.addEventListener("loadedmetadata", () => {
     updateDuration();
     setFrame(0);
+    drawCanvasFrame();
     requestUpdate();
   });
 
+  video.addEventListener("loadeddata", drawCanvasFrame);
   video.addEventListener("canplay", requestUpdate);
-  video.addEventListener("seeked", requestUpdate);
+  video.addEventListener("seeked", () => {
+    drawCanvasFrame();
+    requestUpdate();
+  });
 
   if (!reducedMotion) {
     window.addEventListener("scroll", requestUpdate, { passive: true });
