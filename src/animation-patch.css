@@ -1,0 +1,218 @@
+/* MSS top scroll animation patch.
+   This file overrides only the home hero and leaves the rest of the site structure unchanged. */
+
+.hero-scroll-upgraded {
+  height: 430vh;
+  position: relative;
+  background:
+    radial-gradient(circle at 72% 26%, rgba(66, 201, 245, .20), transparent 32%),
+    radial-gradient(circle at 26% 72%, rgba(185, 146, 77, .16), transparent 30%),
+    linear-gradient(135deg, #03070b 0%, #0b1824 48%, #071019 100%);
+}
+
+.hero-upgraded-pin {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  min-height: 720px;
+  overflow: hidden;
+  display: grid;
+  align-items: center;
+  isolation: isolate;
+}
+
+.hero-bg-glow {
+  position: absolute;
+  inset: -18%;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 66% 50%, rgba(66, 201, 245, .18), transparent 34%),
+    radial-gradient(circle at 76% 60%, rgba(185, 146, 77, .14), transparent 28%),
+    linear-gradient(90deg, rgba(5,12,18,.98), rgba(5,12,18,.52) 48%, rgba(5,12,18,.82));
+  pointer-events: none;
+}
+
+.hero-upgraded-pin::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-image:
+    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: linear-gradient(90deg, black, transparent 78%);
+  pointer-events: none;
+}
+
+.hero-upgraded-layout {
+  position: relative;
+  z-index: 3;
+  width: min(1420px, calc(100% - 44px));
+  margin: 70px auto 24px;
+  display: grid;
+  grid-template-columns: minmax(360px, .82fr) minmax(560px, 1.18fr);
+  gap: clamp(28px, 4vw, 72px);
+  align-items: center;
+}
+
+.hero-upgraded-copy {
+  align-self: center;
+  max-width: 720px;
+}
+
+.hero-upgraded-copy h1 {
+  font-size: clamp(46px, 7vw, 96px);
+  line-height: .94;
+  letter-spacing: -.06em;
+  max-width: 760px;
+}
+
+.hero-upgraded-copy .hero-lede {
+  max-width: 660px;
+  color: #d7e4ea;
+  text-shadow: 0 20px 50px rgba(0,0,0,.34);
+}
+
+.hero-upgraded-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.hero-animation-card {
+  position: relative;
+  min-height: clamp(520px, 74svh, 850px);
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  background:
+    radial-gradient(circle at center, rgba(66,201,245,.16), transparent 52%),
+    rgba(255,255,255,.025);
+  border: 1px solid rgba(103, 190, 226, .16);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.035),
+    0 44px 100px rgba(0,0,0,.25);
+}
+
+.hero-animation-card::before {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border: 1px solid rgba(66,201,245,.16);
+  transform: skewX(-8deg);
+  pointer-events: none;
+}
+
+.hero-scroll-video {
+  position: relative;
+  z-index: 2;
+  width: min(112%, 1180px);
+  height: min(86svh, 900px);
+  max-width: none;
+  object-fit: contain;
+  object-position: center center;
+  filter: saturate(1.02) contrast(1.03) drop-shadow(0 30px 70px rgba(0,0,0,.30));
+  background: transparent;
+}
+
+.hero-metrics-upgraded {
+  margin-top: 32px;
+  border-left-color: rgba(103,190,226,.45);
+}
+
+.hero-scroll-upgraded .scroll-cue {
+  z-index: 5;
+  right: max(18px, calc((100vw - 1420px) / 2));
+  bottom: 28px;
+  color: #dcebf3;
+}
+
+@media (max-width: 1100px) {
+  .hero-upgraded-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    align-items: start;
+    margin-top: 88px;
+  }
+
+  .hero-upgraded-copy {
+    max-width: 920px;
+  }
+
+  .hero-upgraded-copy h1 {
+    max-width: 920px;
+  }
+
+  .hero-animation-card {
+    min-height: clamp(410px, 54svh, 620px);
+  }
+
+  .hero-scroll-video {
+    width: min(112vw, 960px);
+    height: min(56svh, 640px);
+  }
+
+  .hero-metrics-upgraded {
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    border-left: 0;
+    border-top: 1px solid var(--line-strong);
+    padding: 18px 0 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-scroll-upgraded {
+    height: 390vh;
+  }
+
+  .hero-upgraded-pin {
+    min-height: 720px;
+    align-items: start;
+  }
+
+  .hero-upgraded-layout {
+    width: calc(100% - 24px);
+    margin-top: 82px;
+    gap: 14px;
+  }
+
+  .hero-upgraded-copy h1 {
+    font-size: clamp(38px, 12vw, 58px);
+  }
+
+  .hero-upgraded-copy .hero-lede {
+    font-size: 15.5px;
+    line-height: 1.48;
+    margin-top: 16px;
+  }
+
+  .hero-upgraded-actions {
+    display: none;
+  }
+
+  .hero-animation-card {
+    min-height: clamp(340px, 48svh, 500px);
+  }
+
+  .hero-scroll-video {
+    width: 126vw;
+    height: min(50svh, 500px);
+  }
+
+  .hero-metrics-upgraded {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll-upgraded {
+    height: auto;
+  }
+
+  .hero-upgraded-pin {
+    position: relative;
+    min-height: 100svh;
+  }
+}
